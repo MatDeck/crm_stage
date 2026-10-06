@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block contenu %}
+<h1>Accueil</h1>
+
+<div class="chiffres">
+    <div class="carte chiffre">
+        <span class="chiffre-valeur">{{ chiffres.envoyees }}</span>
+        <span class="chiffre-libelle">Candidatures envoyées</span>
+    </div>
+    <div class="carte chiffre">
+        <span class="chiffre-valeur">{{ chiffres.taux_reponse | pourcentage }}</span>
+        <span class="chiffre-libelle">Taux de réponse</span>
+    </div>
+    <div class="carte chiffre">
+        <span class="chiffre-valeur">{{ chiffres.taux_entretien | pourcentage }}</span>
+        <span class="chiffre-libelle">Taux d'entretien</span>
+    </div>
+    <div class="carte chiffre">
+        <span class="chiffre-valeur">
+            {{ chiffres.delai_moyen_reponse | decimal_fr }}{% if chiffres.delai_moyen_reponse is not none %} j{% endif %}
+        </span>
+        <span class="chiffre-libelle" title="Entre l'envoi et la première « Réponse reçue » ou le premier « Entretien » de l'historique">
+            Délai moyen de réponse
+        </span>
+    </div>
+</div>
+
+<div class="grille-accueil">
+    <section class="carte">
+        <h2>À relancer <span class="compteur">{{ a_relancer | length }}</span></h2>
+        {% if a_relancer %}
+            <ul class="liste-accueil">
+                {% for c in a_relancer %}
+                    {% set numero = c.nb_relances + 1 %}
+                    <li>
+                        <a class="accueil-info" href="/candidatures?ouvrir={{ c.id }}">
+                            <strong>{{ c.entreprise }}</strong>
+                            {% if c.poste %}<span class="attenue"> · {{ c.poste }}</span>{% endif %}
+                            <span class="attenue petit">
+                                {{ numero }}{{ "re" if numero == 1 else "e" }} relance
+                                {% if c.jours_sans_nouvelles is not none %} · sans nouvelles depuis {{ c.jours_sans_nouvelles }} jours{% endif %}
+                                {% if c.contact_email %} · {{ c.contact_email }}{% endif %}
+                            </span>
+                        </a>
+                        <form method="post" action="/candidatures/{{ c.id }}/relancee">
+                            <input type="hidden" name="retour" value="/">
+                            <button class="bouton petit">Marquer relancée</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="attenue">Aucune candidature à relancer pour le moment.</p>
+        {% endif %}
+    </section>
+
+    <section class="carte">
+        <h2>Entretiens à venir <span class="compteur">{{ entretiens | length }}</span></h2>
+        {% if entretiens %}
+            <ul class="liste-accueil">
+                {% for c, e in entretiens %}
+                    <li>
+                        <a class="accueil-info" href="/candidatures?ouvrir={{ c.id }}">
+                            <strong>{{ e.jour | date_fr }}{% if e.heure %} à {{ e.heure | heure_fr }}{% endif %} · {{ c.entreprise }}</strong>
+                            {% if e.note %}<span class="attenue petit">{{ e.note | truncate(80) }}</span>{% endif %}
+                        </a>
+                        {% if e.lieu %}
+                            {% if e.lieu_est_lien %}
+                                <a class="bouton petit" href="{{ e.lieu }}" target="_blank" rel="noopener">Lien visio ↗</a>
+                            {% else %}
+                                <span class="attenue petit">{{ e.lieu }}</span>
+                            {% endif %}
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="attenue">Aucun entretien prévu. Ajoute-les depuis l'historique d'une candidature.</p>
+        {% endif %}
+    </section>
+
+    <section class="carte">
+        <h2>État des recherches <span class="compteur">{{ total }}</span></h2>
+        {% if total %}
+            <div class="graphique"><canvas id="graphique-statuts"></canvas></div>
+        {% else %}
+            <p class="attenue">Aucune candidature. <a href="/candidatures">Ajouter la première</a></p>
+        {% endif %}
+    </section>
+
+    <section class="carte">
+        <h2>Par source</h2>
+        {% if chiffres.envoyees %}
+            <div class="graphique"><canvas id="graphique-sources"></canvas></div>
+        {% else %}
+            <p class="attenue">Aucune candidature envoyée pour le moment.</p>
+        {% endif %}
+    </section>
+
+    <section class="carte large">
+        <h2>Candidatures envoyées par semaine</h2>
+        <div class="graphique petit-graphique"><canvas id="graphique-semaines"></canvas></div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    const donnees = {{ graphiques | tojson }};
+    const entiers = {ticks: {precision: 0}, beginAtZero: true};
+
+    function dessiner(id, config) {
+        const canvas = document.getElementById(id);
+        if (canvas) new Chart(canvas, {...config, options: {maintainAspectRatio: false, ...config.options}});
+    }
+
+    dessiner("graphique-statuts", {
+        type: "doughnut",
+        data: {
+            labels: donnees.statuts.libelles,
+            datasets: [{data: donnees.statuts.valeurs, backgroundColor: donnees.statuts.couleurs, borderWidth: 0}],
+        },
+        options: {plugins: {legend: {position: "right"}}},
+    });
+
+    dessiner("graphique-sources", {
+        type: "bar",
+        data: {
+            labels: donnees.sources.libelles,
+            datasets: [
+                {label: "Envoyées", data: donnees.sources.envoyees, backgroundColor: donnees.sources.couleurs[0]},
+                {label: "Entretiens", data: donnees.sources.entretiens, backgroundColor: donnees.sources.couleurs[1]},
+            ],
+        },
+        options: {indexAxis: "y", scales: {x: entiers}},
+    });
+
+    dessiner("graphique-semaines", {
+        type: "bar",
+        data: {
+            labels: donnees.semaines.libelles.map((l) => "Sem. du " + l),
+            datasets: [{label: "Envoyées", data: donnees.semaines.valeurs, backgroundColor: donnees.semaines.couleur}],
+        },
+        options: {plugins: {legend: {display: false}}, scales: {y: entiers}},
+    });
+</script>
+{% endblock %}

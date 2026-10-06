@@ -1,0 +1,73 @@
+<div class="panneau-entete">
+    <div>
+        <h2>{{ "Nouvelle candidature" if nouvelle else "Modifier · " ~ c.entreprise }}</h2>
+    </div>
+    <button class="bouton-fermer" data-fermer aria-label="Fermer">×</button>
+</div>
+
+<form method="post" action="/candidatures{{ '' if nouvelle else '/' ~ c.id }}" class="formulaire" id="form-candidature">
+    <fieldset>
+        <legend>Candidature</legend>
+        <label>Entreprise *
+            <input name="entreprise" value="{{ c.entreprise }}" required autofocus>
+        </label>
+        <label>Site de l'entreprise
+            <input name="site_entreprise" value="{{ c.site_entreprise }}" placeholder="https://…">
+        </label>
+        <div class="ligne">
+            <label>Source
+                <input name="source" value="{{ c.source }}" list="liste-sources" placeholder="Choisir ou saisir…">
+                <datalist id="liste-sources">
+                    {% for s in sources %}<option value="{{ s }}">{% endfor %}
+                </datalist>
+            </label>
+            <label>Statut
+                <select name="statut">
+                    {% for s in statuts %}
+                        <option value="{{ s.value }}" {{ "selected" if s == c.statut }}>{{ s.libelle }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </div>
+        <label>Date d'envoi <input type="date" name="date_envoi" value="{{ c.date_envoi or '' }}"></label>
+        {% if not nouvelle %}
+            <p class="attenue petit">Les relances se gèrent dans l'historique de la fiche.</p>
+        {% endif %}
+    </fieldset>
+
+    <fieldset>
+        <legend>Offre</legend>
+        <div class="ligne">
+            <label>Poste <input name="poste" value="{{ c.poste }}"></label>
+            <label>Lieu <input name="lieu" value="{{ c.lieu }}"></label>
+        </div>
+        <label>Sujet <input name="sujet" value="{{ c.sujet }}"></label>
+        <label>Lien de l'offre <input name="url_offre" value="{{ c.url_offre }}" placeholder="https://…"></label>
+        <div class="ligne">
+            <label>Salaire min (€/an) <input type="number" name="salaire_min" min="0" value="{{ c.salaire_min if c.salaire_min is not none else '' }}"></label>
+            <label>Salaire max (€/an) <input type="number" name="salaire_max" min="0" value="{{ c.salaire_max if c.salaire_max is not none else '' }}"></label>
+        </div>
+        <label>Description de l'offre
+            <textarea name="description" rows="6">{{ c.description }}</textarea>
+        </label>
+    </fieldset>
+
+    <fieldset>
+        <legend>Contact</legend>
+        <label>Nom <input name="contact_nom" value="{{ c.contact_nom }}"></label>
+        <div class="ligne">
+            <label>Email <input type="email" name="contact_email" value="{{ c.contact_email }}"></label>
+            <label>Téléphone <input type="tel" name="contact_telephone" value="{{ c.contact_telephone }}"></label>
+        </div>
+    </fieldset>
+
+</form>
+
+<div class="panneau-actions">
+    <button class="bouton principal" form="form-candidature">{{ "Créer" if nouvelle else "Enregistrer" }}</button>
+    {% if nouvelle %}
+        <button class="bouton" data-fermer>Annuler</button>
+    {% else %}
+        <button class="bouton" data-panneau="/candidatures/{{ c.id }}/panneau">Annuler</button>
+    {% endif %}
+</div>

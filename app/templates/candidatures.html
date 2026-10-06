@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block titre %}Candidatures · Suivi de stage{% endblock %}
+{% block classe_contenu %}large{% endblock %}
+
+{% block contenu %}
+<div class="titre-page">
+    <h1>Candidatures</h1>
+    <button class="bouton principal" data-panneau="/candidatures/nouvelle/panneau">+ Nouvelle candidature</button>
+</div>
+
+{% if candidatures %}
+<div class="filtres">
+    <button class="pastille" data-filtre-statut="">Toutes <span>{{ candidatures | length }}</span></button>
+    {% for s in statuts %}
+        <button class="pastille" data-filtre-statut="{{ s.value }}" style="--couleur: {{ s.couleur }}"
+                {{ "data-vide" if not compteurs[s] }}>{{ s.libelle }} <span>{{ compteurs[s] }}</span></button>
+    {% endfor %}
+</div>
+
+<div class="carte tableau-conteneur">
+    <table class="tableau">
+        <thead>
+        <tr>
+            <th data-tri>Entreprise</th>
+            <th data-tri>Poste</th>
+            <th data-tri>Lieu</th>
+            <th data-tri>Source</th>
+            <th data-tri>Statut</th>
+            <th data-tri>Envoyée le</th>
+            <th data-tri>Dernier contact</th>
+            <th data-tri>Contact</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for c in candidatures %}
+            <tr class="cliquable" data-panneau="/candidatures/{{ c.id }}/panneau" data-statut="{{ c.statut.value }}">
+                <td><strong>{{ c.entreprise }}</strong></td>
+                <td>{{ c.poste or "—" }}</td>
+                <td>{{ c.lieu or "—" }}</td>
+                <td>{{ c.source or "—" }}</td>
+                <td data-valeur="{{ c.statut.ordre }}">
+                    <form method="post" action="/candidatures/{{ c.id }}/statut">
+                        <select name="statut" class="select-statut" style="--couleur: {{ c.statut.couleur }}"
+                                onchange="this.form.submit()">
+                            {% for s in statuts %}
+                                <option value="{{ s.value }}" {{ "selected" if s == c.statut }}>{{ s.libelle }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </td>
+                <td data-valeur="{{ c.date_envoi or '' }}">{{ c.date_envoi | date_fr }}</td>
+                <td data-valeur="{{ c.dernier_contact or '' }}">{{ c.dernier_contact | date_fr }}</td>
+                <td>{{ c.contact_nom or "—" }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+        <tr id="aucun-resultat" hidden>
+            <td colspan="8" class="attenue">Aucune candidature avec ces statuts.</td>
+        </tr>
+        </tfoot>
+    </table>
+</div>
+{% else %}
+<div class="carte">
+    <p class="attenue">Aucune candidature pour le moment. Clique sur « Nouvelle candidature » pour commencer.</p>
+</div>
+{% endif %}
+
+<div class="voile" id="voile"></div>
+<aside class="panneau" id="panneau" {% if ouvrir %}data-ouvrir="/candidatures/{{ ouvrir }}/panneau{{ '?erreur=' ~ (erreur | urlencode) if erreur }}"{% endif %}></aside>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ statique('panneau.js') }}"></script>
+<script src="{{ statique('tableau.js') }}"></script>
+{% endblock %}

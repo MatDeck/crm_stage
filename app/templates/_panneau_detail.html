@@ -1,0 +1,158 @@
+<div class="panneau-entete">
+    <div>
+        <h2>{{ c.entreprise }}</h2>
+        {% with statut = c.statut %}{% include "_badge.html" %}{% endwith %}
+    </div>
+    <button class="bouton-fermer" data-fermer aria-label="Fermer">×</button>
+</div>
+
+<div class="fiche">
+    <section>
+        <h3>Candidature</h3>
+        <dl>
+            <dt>Entreprise</dt><dd>{{ c.entreprise }}</dd>
+            <dt>Site de l'entreprise</dt>
+            <dd>{% if c.site_entreprise %}<a href="{{ c.site_entreprise }}" target="_blank" rel="noopener">{{ c.site_entreprise }}</a>{% else %}—{% endif %}</dd>
+            <dt>Source</dt><dd>{{ c.source or "—" }}</dd>
+            <dt>Créée le</dt><dd>{{ c.date_creation | date_fr }}</dd>
+            <dt>Envoyée le</dt><dd>{{ c.date_envoi | date_fr }}</dd>
+            <dt>Dernière relance</dt>
+            <dd>
+                {{ c.date_relance | date_fr }}
+                {% if c.nb_relances %}<span class="attenue">({{ c.nb_relances }} relance{{ "s" if c.nb_relances > 1 }})</span>{% endif %}
+            </dd>
+            {% if c.jours_sans_nouvelles is not none %}
+                <dt>Sans nouvelles depuis</dt><dd>{{ c.jours_sans_nouvelles }} jours</dd>
+            {% endif %}
+        </dl>
+    </section>
+
+    <section>
+        <h3>Historique</h3>
+        <details class="ajout-evenement">
+            <summary class="bouton petit">+ Ajouter un échange</summary>
+            <form method="post" action="/candidatures/{{ c.id }}/historique" class="formulaire compact">
+                <div class="ligne">
+                    <label>Type
+                        <select name="type">
+                            {% for t in types_evenements %}<option value="{{ t.value }}">{{ t.libelle }}</option>{% endfor %}
+                        </select>
+                    </label>
+                    <label>Date <input type="date" name="jour" value="{{ aujourd_hui() }}" required></label>
+                    <label>Heure <input type="time" name="heure"></label>
+                </div>
+                <label>Lieu ou lien visio <input name="lieu" placeholder="Adresse, ou lien Teams / Zoom / Meet…"></label>
+                <label>Note <textarea name="note" rows="2"></textarea></label>
+                <button class="bouton principal petit">Ajouter</button>
+            </form>
+        </details>
+
+        {% if c.historique %}
+            <ol class="historique">
+                {% for e in c.historique_chronologique %}
+                    <li class="{{ 'a-venir' if e.entretien_a_venir }}">
+                        <div class="evenement-entete">
+                            <span class="badge" style="--couleur: {{ e.type.couleur }}">{{ e.type.libelle }}</span>
+                            <span>{{ e.jour | date_fr }}{% if e.heure %} à {{ e.heure | heure_fr }}{% endif %}</span>
+                            {% if e.entretien_a_venir %}<span class="petit a-venir-libelle">à venir</span>{% endif %}
+                            <form method="post" action="/candidatures/{{ c.id }}/historique/{{ e.id }}/supprimer"
+                                  onsubmit="return confirm('Supprimer cette entrée ?')">
+                                <button class="bouton-fermer petit" title="Supprimer">×</button>
+                            </form>
+                        </div>
+                        {% if e.lieu %}
+                            <div class="petit">
+                                {% if e.lieu_est_lien %}<a href="{{ e.lieu }}" target="_blank" rel="noopener">{{ e.lieu }}</a>{% else %}{{ e.lieu }}{% endif %}
+                            </div>
+                        {% endif %}
+                        {% if e.note %}<p class="evenement-note">{{ e.note }}</p>{% endif %}
+                    </li>
+                {% endfor %}
+            </ol>
+        {% else %}
+            <p class="attenue petit">Aucun échange pour le moment.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h3>Offre</h3>
+        <dl>
+            <dt>Poste</dt><dd>{{ c.poste or "—" }}</dd>
+            <dt>Lieu</dt><dd>{{ c.lieu or "—" }}</dd>
+            <dt>Sujet</dt><dd>{{ c.sujet or "—" }}</dd>
+            <dt>Lien de l'offre</dt>
+            <dd>{% if c.url_offre %}<a href="{{ c.url_offre }}" target="_blank" rel="noopener">Voir l'offre ↗</a>{% else %}—{% endif %}</dd>
+            <dt>Salaire</dt>
+            <dd>
+                {% if c.salaire_min is not none and c.salaire_max is not none %}{{ c.salaire_min }} – {{ c.salaire_max }} €/an
+                {% elif c.salaire_min is not none %}À partir de {{ c.salaire_min }} €/an
+                {% elif c.salaire_max is not none %}Jusqu'à {{ c.salaire_max }} €/an
+                {% else %}Non renseigné{% endif %}
+            </dd>
+        </dl>
+        {% if c.description %}
+            <p class="description">{{ c.description }}</p>
+        {% else %}
+            <p class="attenue petit">Aucune description de l'offre.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h3>Contact</h3>
+        {% if c.contact_nom or c.contact_email or c.contact_telephone %}
+            <dl>
+                <dt>Nom</dt><dd>{{ c.contact_nom or "—" }}</dd>
+                <dt>Email</dt>
+                <dd>{% if c.contact_email %}<a href="mailto:{{ c.contact_email }}">{{ c.contact_email }}</a>{% else %}—{% endif %}</dd>
+                <dt>Téléphone</dt>
+                <dd>{% if c.contact_telephone %}<a href="tel:{{ c.contact_telephone }}">{{ c.contact_telephone }}</a>{% else %}—{% endif %}</dd>
+            </dl>
+        {% else %}
+            <p class="attenue petit">Aucun contact renseigné.</p>
+        {% endif %}
+    </section>
+
+    <section id="documents">
+        <h3>Documents</h3>
+        {% if erreur %}<p class="alerte">{{ erreur }}</p>{% endif %}
+        <ul class="documents">
+            {% for t in types_documents %}
+                {% set nom = c | attr(t.champ) %}
+                <li>
+                    <span class="document-type">{{ t.libelle }}</span>
+                    {% if nom %}
+                        <a class="document-nom" href="/candidatures/{{ c.id }}/documents/{{ t.value }}"
+                           target="_blank" rel="noopener" title="Ouvrir le PDF">{{ nom }} ↗</a>
+                    {% else %}
+                        <span class="document-nom attenue">Aucun fichier</span>
+                    {% endif %}
+                    <form method="post" action="/candidatures/{{ c.id }}/documents/{{ t.value }}" enctype="multipart/form-data">
+                        <label class="bouton petit">
+                            {{ "Remplacer" if nom else "Ajouter (PDF)" }}
+                            <input type="file" name="fichier" accept="application/pdf,.pdf" hidden
+                                   onchange="this.form.submit()">
+                        </label>
+                    </form>
+                    {% if nom %}
+                        <form method="post" action="/candidatures/{{ c.id }}/documents/{{ t.value }}/supprimer"
+                              onsubmit="return confirm('Supprimer ce document ?')">
+                            <button class="bouton petit danger" title="Supprimer le document">×</button>
+                        </form>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>
+
+<div class="panneau-actions">
+    <button class="bouton principal" data-panneau="/candidatures/{{ c.id }}/panneau/modifier">Modifier</button>
+    <form method="post" action="/candidatures/{{ c.id }}/relancee">
+        <input type="hidden" name="retour" value="/candidatures?ouvrir={{ c.id }}">
+        <button class="bouton">Marquer relancée</button>
+    </form>
+    <form method="post" action="/candidatures/{{ c.id }}/supprimer"
+          onsubmit="return confirm('Supprimer cette candidature ?')">
+        <button class="bouton danger">Supprimer</button>
+    </form>
+</div>

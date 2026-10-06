@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block titre %}Suivi de stage{% endblock %}</title>
+    <link rel="stylesheet" href="{{ statique('style.css') }}">
+</head>
+<body>
+<header class="entete">
+    <span class="logo">Suivi de stage</span>
+    <nav>
+        <a href="/" class="{{ 'actif' if request.url.path == '/' }}">Accueil</a>
+        <a href="/candidatures" class="{{ 'actif' if request.url.path.startswith('/candidatures') }}">Candidatures</a>
+    </nav>
+</header>
+<main class="contenu {% block classe_contenu %}{% endblock %}">
+    {% block contenu %}{% endblock %}
+</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>
